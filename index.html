@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --primary-color: #1a237e; /* Azul profundo */
@@ -237,11 +238,73 @@
             </ul>
             <div class="tab-content mt-3">
               <div class="tab-pane fade show active" id="adminDash">
-                <div class="row text-center">
-                  <div class="col-md-3"><div class="p-3 border rounded"><h5 class="text-muted">Total Estudiantes</h5><h3 id="adTotEst">0</h3></div></div>
-                  <div class="col-md-3"><div class="p-3 border rounded"><h5 class="text-muted">Total Docentes</h5><h3 id="adTotDoc">0</h3></div></div>
-                  <div class="col-md-3"><div class="p-3 border rounded"><h5 class="text-muted">QuindCoins Circulantes</h5><h3 id="adTotPts">0</h3></div></div>
-                  <div class="col-md-3"><div class="p-3 border rounded"><h5 class="text-muted">Canjes Pendientes</h5><h3 id="adTotCanj">0</h3></div></div>
+                
+                <!-- Tarjetas KPI -->
+                <div class="row text-center mb-4">
+                  <div class="col-md-3"><div class="p-3 border rounded border-primary shadow-sm bg-light"><h6 class="text-muted text-uppercase mb-1" style="font-size:0.8rem;">QuindCoins (Estudiantes)</h6><h3 id="adTotPts" class="text-primary mb-0">0</h3></div></div>
+                  <div class="col-md-3"><div class="p-3 border rounded border-warning shadow-sm bg-light"><h6 class="text-muted text-uppercase mb-1" style="font-size:0.8rem;">Estudiantes / Docentes</h6><h3 id="adTotEst" class="text-warning mb-0">0 / 0</h3></div></div>
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded shadow-sm d-flex justify-content-between align-items-center bg-white h-100">
+                      <div><h6 class="text-muted mb-0"><i class="fa-solid fa-ranking-star text-warning"></i> Máximo Donador (Docente)</h6><h5 id="adTopDocName" class="text-dark mb-0 mt-1">-</h5><small class="text-success fw-bold" id="adTopDocPts">0 QC</small></div>
+                      <div><h6 class="text-muted mb-0"><i class="fa-solid fa-trophy text-primary"></i> Estudiante Más Rico</h6><h5 id="adTopEstName" class="text-dark mb-0 mt-1">-</h5><small class="text-success fw-bold" id="adTopEstPts">0 QC</small></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Gráficos Analíticos -->
+                <div class="row mb-4">
+                   <div class="col-md-6">
+                      <div class="border rounded p-3 bg-white shadow-sm text-center">
+                         <h6 class="text-muted fw-bold mb-3">Distribución de Riqueza</h6>
+                         <canvas id="chartSaldos" height="200"></canvas>
+                      </div>
+                   </div>
+                   <div class="col-md-6">
+                      <div class="border rounded p-3 bg-white shadow-sm text-center">
+                         <h6 class="text-muted fw-bold mb-3">Top 5 Docentes Altruistas</h6>
+                         <canvas id="chartTopDocentes" height="200"></canvas>
+                      </div>
+                   </div>
+                </div>
+
+                <!-- Base de Movimientos / Filtros -->
+                <div class="border rounded p-3 bg-white shadow-sm">
+                   <h5 class="text-primary fw-bold mb-3"><i class="fa-solid fa-money-bill-transfer"></i> Base de Movimientos (Libro Mayor)</h5>
+                   <div class="row g-2 mb-3 align-items-end">
+                      <div class="col-md-3">
+                         <label class="small text-muted fw-bold">Fecha Inicio</label>
+                         <input type="date" id="filtroFechaIn" class="form-control form-control-sm">
+                      </div>
+                      <div class="col-md-3">
+                         <label class="small text-muted fw-bold">Fecha Fin</label>
+                         <input type="date" id="filtroFechaOut" class="form-control form-control-sm">
+                      </div>
+                      <div class="col-md-3">
+                         <label class="small text-muted fw-bold">Buscar Usuario (Nombre/ID)</label>
+                         <input type="text" id="filtroUsuario" class="form-control form-control-sm" placeholder="Ej: Docente, Estudiante o CC">
+                      </div>
+                      <div class="col-md-3">
+                         <button class="btn btn-sm btn-primary w-100 fw-bold" onclick="cargarMovimientosAdmin()"><i class="fa-solid fa-filter"></i> Filtrar Historial</button>
+                      </div>
+                   </div>
+                   
+                   <div class="table-responsive">
+                      <table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">
+                         <thead class="table-light text-muted">
+                           <tr>
+                              <th>Fecha</th>
+                              <th>Tipo</th>
+                              <th>Emisor (De)</th>
+                              <th>Receptor (Para)</th>
+                              <th>Valor</th>
+                              <th>Motivo / Sede</th>
+                           </tr>
+                         </thead>
+                         <tbody id="adminTablaMovimientos">
+                           <tr><td colspan="6" class="text-center text-muted py-3">Presiona "Filtrar Historial" para cargar y analizar la base de datos de compras y transferencias.</td></tr>
+                         </tbody>
+                      </table>
+                   </div>
                 </div>
               </div>
               <div class="tab-pane fade" id="adminSync">
@@ -279,6 +342,12 @@
             <h4>Mi Saldo Semanal</h4>
             <div class="coin-display my-3"><i class="fa-solid fa-coins"></i> <span id="docSaldo">0</span></div>
             <p class="text-muted small">Próximo reinicio: <span id="docReinicio"></span></p>
+            <button class="btn btn-sm btn-outline-primary mt-3 w-100 fw-bold" onclick="uiLoadDocenteHistorial()"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Envíos</button>
+          </div>
+          
+          <div id="docHistorialCard" class="glass-card mt-3" style="display:none; max-height:400px; overflow-y:auto;">
+             <h5 class="text-primary fw-bold mb-3"><i class="fa-solid fa-list"></i> Transacciones Históricas</h5>
+             <div id="docHistorialList" class="list-group list-group-flush small"></div>
           </div>
         </div>
         <div class="col-md-8">
@@ -725,17 +794,101 @@
     }
 
     // ===== ADMIN =====
+    let chartSaldosInstance = null;
+    let chartTopDocentesInstance = null;
+
     function uiLoadAdminDash() {
       showLoader();
       google.script.run.withSuccessHandler(res => {
         hideLoader();
         if(res.success) {
-          document.getElementById('adTotEst').innerText = res.data.totalEst;
-          document.getElementById('adTotDoc').innerText = res.data.totalDoc;
-          document.getElementById('adTotPts').innerText = res.data.puntosEst + res.data.puntosDoc;
-          document.getElementById('adTotCanj').innerText = res.data.canjesPend;
+          document.getElementById('adTotPts').innerText = res.data.puntosEst;
+          document.getElementById('adTotEst').innerText = res.data.totalEst + ' / ' + res.data.totalDoc;
+          
+          if(res.data.topDoc && res.data.topDoc.length > 0) {
+             document.getElementById('adTopDocName').innerText = res.data.topDoc[0].nombre;
+             document.getElementById('adTopDocPts').innerText = res.data.topDoc[0].regalados + ' QC Reg.';
+          }
+          if(res.data.top5 && res.data.top5.length > 0) {
+             document.getElementById('adTopEstName').innerText = res.data.top5[0].nombre;
+             document.getElementById('adTopEstPts').innerText = res.data.top5[0].saldo + ' QC';
+          }
+
+          // DIBUJAR GRÁFICOS
+          renderCharts(res.data);
+          
+          // Cargar movimientos sin filtro de prueba inicial
+          cargarMovimientosAdmin();
         }
       }).getAdminDashboard();
+    }
+
+    function renderCharts(data) {
+       // Elimina instancias previas para evitar glitches de Canvas
+       if(chartSaldosInstance) chartSaldosInstance.destroy();
+       if(chartTopDocentesInstance) chartTopDocentesInstance.destroy();
+
+       const ctxP = document.getElementById('chartSaldos').getContext('2d');
+       chartSaldosInstance = new Chart(ctxP, {
+           type: 'doughnut',
+           data: {
+               labels: ['Puntos Alumnos', 'Puntos Flotantes Docentes'],
+               datasets: [{
+                   data: [data.puntosEst, data.puntosDoc],
+                   backgroundColor: ['#fbc02d', '#1a237e'],
+                   borderWidth: 2
+               }]
+           },
+           options: { animation: { animateScale: true } }
+       });
+
+       const ctxB = document.getElementById('chartTopDocentes').getContext('2d');
+       const nDoc = data.topDoc.map(x=>x.nombre.split(' ')[0]);
+       const vDoc = data.topDoc.map(x=>x.regalados);
+       chartTopDocentesInstance = new Chart(ctxB, {
+           type: 'bar',
+           data: {
+               labels: nDoc,
+               datasets: [{
+                   label: 'QuindCoins Transferidos',
+                   data: vDoc,
+                   backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                   borderColor: '#198754',
+                   borderWidth: 1
+               }]
+           },
+           options: { scales: { y: { beginAtZero: true } } }
+       });
+    }
+
+    function cargarMovimientosAdmin() {
+       const b = document.getElementById('adminTablaMovimientos');
+       b.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div> Cargando base de datos...</td></tr>';
+       
+       const filtros = {
+           fechaInicio: document.getElementById('filtroFechaIn').value,
+           fechaFin: document.getElementById('filtroFechaOut').value,
+           usuario: document.getElementById('filtroUsuario').value.trim()
+       };
+
+       google.script.run.withSuccessHandler(res => {
+          if(res.success) {
+             let html = '';
+             res.data.forEach(r => {
+                const date = new Date(r.fecha).toLocaleString();
+                const icon = r.tipo==='transferencia' ? '<span class="badge bg-primary">Transf.</span>' : (r.tipo==='canje'?'<span class="badge bg-success">Canje</span>':'<span class="badge bg-secondary">Ajuste</span>');
+                html += `<tr>
+                  <td><small class="text-muted">${date}</small></td>
+                  <td>${icon}</td>
+                  <td><b>${r.de}</b></td>
+                  <td><b>${r.para}</b></td>
+                  <td class="text-success fw-bold">${r.puntos} QC</td>
+                  <td><small>${r.motivo || ''} <span class="text-muted">(${r.sede || ''})</span></small></td>
+                </tr>`;
+             });
+             b.innerHTML = html || '<tr><td colspan="6" class="text-center text-muted">No se encontraron movimientos para estos filtros.</td></tr>';
+          } else b.innerHTML = `<tr><td colspan="6" class="text-danger text-center">Falló: ${res.message}</td></tr>`;
+       }).getTransacciones(filtros);
     }
 
     function doSincronizar() {
@@ -831,6 +984,28 @@
     }
 
     // ===== DOCENTE =====
+    function uiLoadDocenteHistorial() {
+       const cd = document.getElementById('docHistorialCard');
+       const ls = document.getElementById('docHistorialList');
+       cd.style.display = 'block';
+       cd.classList.add('animate__animated','animate__fadeInRight');
+       ls.innerHTML = '<div class="text-center py-2"><span class="spinner-border spinner-border-sm text-primary"></span></div>';
+       
+       google.script.run.withSuccessHandler(res => {
+          if(res.success) {
+             let html = '';
+             res.data.forEach(r => {
+                const f = new Date(r.fecha).toLocaleDateString();
+                html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><span class="fw-bold d-block text-truncate" style="max-width:180px">${r.para}</span><small class="text-muted">${f} | ${r.motivo || 'Motivo general'}</small></div>
+                    <span class="badge bg-success rounded-pill">+${r.puntos}</span>
+                </div>`;
+             });
+             ls.innerHTML = html || '<p class="text-center text-muted m-0">No tienes envíos resientes registrados.</p>';
+          } else { ls.innerHTML = 'Error al cargar'; }
+       }).getTransacciones({ usuario: sesion.identificador, tipo: 'transferencia' });
+    }
+
     function uiLoadDocenteData() {
       showLoader();
       google.script.run.withSuccessHandler(res => {
